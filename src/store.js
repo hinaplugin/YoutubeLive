@@ -19,9 +19,7 @@ function loadState(statePath) {
 }
 
 function saveState(statePath, state) {
-  const tmpPath = `${statePath}.tmp`;
-  fs.writeFileSync(tmpPath, JSON.stringify(state, null, 2), 'utf8');
-  fs.renameSync(tmpPath, statePath);
+  fs.writeFileSync(statePath, JSON.stringify(state, null, 2), 'utf8');
 }
 
 module.exports = { resolveStatePath, loadState, saveState };

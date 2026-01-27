@@ -34,6 +34,11 @@ function isFutureTime(value, nowMs) {
   return ts > nowMs;
 }
 
+function isQuotaExceededError(err) {
+  if (!err || !err.message) return false;
+  return err.message.includes('HTTP 403') && err.message.includes('quotaExceeded');
+}
+
 async function pollOnce({ config, configDir, logger, state, statePath, isStartup }) {
   const apiKey = process.env.YOUTUBE_API_KEY;
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
@@ -66,7 +71,19 @@ async function pollOnce({ config, configDir, logger, state, statePath, isStartup
 
     logger.info('Polling channel', { channelId, channelName });
 
-    const result = await getChannelVideos({ channelId, apiKey, maxResults });
+    let result;
+    try {
+      result = await getChannelVideos({ channelId, apiKey, maxResults });
+    } catch (err) {
+      if (isQuotaExceededError(err)) {
+        logger.warn('Quota exceeded, skipping channel until next poll', {
+          channelId,
+          error: err.message
+        });
+        continue;
+      }
+      throw err;
+    }
     const { upcomingIds, liveIds, completedIds, details } = result;
 
     for (const item of details) {

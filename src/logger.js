@@ -11,8 +11,13 @@ function createLogger() {
     fs.mkdirSync(logDir, { recursive: true });
   }
 
+  function formatJstIso() {
+    const jstMs = Date.now() + 9 * 60 * 60 * 1000;
+    return new Date(jstMs).toISOString().replace('Z', '+09:00');
+  }
+
   function write(level, message, meta) {
-    const ts = new Date().toISOString();
+    const ts = formatJstIso();
     const line = `${ts} [${level}] ${message}` + (meta ? ` ${JSON.stringify(meta)}` : '') + '\n';
     fs.appendFileSync(logPath, line, 'utf8');
   }

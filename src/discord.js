@@ -12,6 +12,14 @@ const TYPE_LABELS = {
   live_ended: '配信が終了しました'
 };
 
+function formatJstIso(value) {
+  if (!value) return '';
+  const ts = Date.parse(value);
+  if (Number.isNaN(ts)) return value;
+  const jst = new Date(ts + 9 * 60 * 60 * 1000).toISOString();
+  return jst.replace('Z', '+09:00');
+}
+
 function resolveColor(colorValue) {
   if (typeof colorValue === 'number') return colorValue;
   if (!colorValue) return 0x2f3136;
@@ -53,7 +61,7 @@ function buildEmbed({ type, video, notificationConfig, channelName }) {
     embed.fields = [
       {
         name: 'Start Time',
-        value: video.start_time,
+        value: formatJstIso(video.start_time),
         inline: false
       }
     ];

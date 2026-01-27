@@ -93,7 +93,7 @@ async function pollOnce({ config, configDir, logger, state, statePath, isStartup
         }
         status = 'live';
       } else if (completedIds.has(info.id)) {
-        const suppressEndedNotice = isStartup && prev?.status === 'upcoming';
+        const suppressEndedNotice = isStartup && (!prev || prev?.status === 'upcoming');
         if (!suppressEndedNotice && prev?.status !== 'completed') {
           type = 'live_ended';
         }

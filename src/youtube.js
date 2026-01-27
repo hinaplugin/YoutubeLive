@@ -51,19 +51,17 @@ async function fetchVideoDetails({ ids, apiKey }) {
 }
 
 async function getChannelVideos({ channelId, apiKey, maxResults }) {
-  const [upcomingIds, liveIds, completedIds] = await Promise.all([
+  const [upcomingIds, liveIds] = await Promise.all([
     searchVideosByEventType({ channelId, eventType: 'upcoming', apiKey, maxResults }),
-    searchVideosByEventType({ channelId, eventType: 'live', apiKey, maxResults }),
-    searchVideosByEventType({ channelId, eventType: 'completed', apiKey, maxResults })
+    searchVideosByEventType({ channelId, eventType: 'live', apiKey, maxResults })
   ]);
 
-  const allIds = Array.from(new Set([...upcomingIds, ...liveIds, ...completedIds]));
+  const allIds = Array.from(new Set([...upcomingIds, ...liveIds]));
   const details = await fetchVideoDetails({ ids: allIds, apiKey });
 
   return {
     upcomingIds: new Set(upcomingIds),
     liveIds: new Set(liveIds),
-    completedIds: new Set(completedIds),
     details
   };
 }

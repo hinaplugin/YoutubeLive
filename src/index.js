@@ -84,7 +84,7 @@ async function pollOnce({ config, configDir, logger, state, statePath, isStartup
       }
       throw err;
     }
-    const { upcomingIds, liveIds, completedIds, details } = result;
+    const { upcomingIds, liveIds, details } = result;
 
     for (const item of details) {
       const info = toVideoInfo(item);
@@ -109,12 +109,6 @@ async function pollOnce({ config, configDir, logger, state, statePath, isStartup
           type = 'live_started';
         }
         status = 'live';
-      } else if (completedIds.has(info.id)) {
-        const suppressEndedNotice = isStartup && (!prev || prev?.status === 'upcoming');
-        if (!suppressEndedNotice && prev?.status !== 'completed') {
-          type = 'live_ended';
-        }
-        status = 'completed';
       }
 
       state.videos[info.id] = {
@@ -136,6 +130,34 @@ async function pollOnce({ config, configDir, logger, state, statePath, isStartup
           logger.info('Notification sent', { type, videoId: info.id });
         } catch (err) {
           logger.error('Failed to send notification', { error: err.message, type, videoId: info.id });
+        }
+      }
+    }
+
+    for (const [videoId, prevInfo] of Object.entries(state.videos)) {
+      if (prevInfo.channel_id !== channelId) continue;
+      if (prevInfo.status !== 'live') continue;
+      if (liveIds.has(videoId)) continue;
+
+      prevInfo.status = 'completed';
+      state.videos[videoId] = prevInfo;
+
+      if (!isStartup) {
+        try {
+          const embed = buildEmbed({
+            type: 'live_ended',
+            video: prevInfo,
+            notificationConfig,
+            channelName
+          });
+          await sendWebhook({ webhookUrl, embed });
+          logger.info('Notification sent', { type: 'live_ended', videoId });
+        } catch (err) {
+          logger.error('Failed to send notification', {
+            error: err.message,
+            type: 'live_ended',
+            videoId
+          });
         }
       }
     }

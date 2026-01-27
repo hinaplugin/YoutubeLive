@@ -1,7 +1,7 @@
 ﻿const { loadConfig } = require('./config');
 const { createLogger } = require('./logger');
 const { getStatePath, loadState, saveState } = require('./store');
-const { getChannelVideos } = require('./youtube');
+const { getChannelName, getChannelVideos } = require('./youtube');
 const { buildEmbed, sendWebhook } = require('./discord');
 
 function toVideoInfo(item) {
@@ -37,9 +37,23 @@ async function pollOnce({ config, configDir, logger, state, statePath }) {
   const notificationConfig = config.notification || {};
   const maxResults = config.max_results || 10;
 
+  const channelNameCache = new Map();
+
   for (const ch of config.channels) {
     const channelId = ch.channel_id;
-    const channelName = ch.name || channelId;
+    let channelName = channelNameCache.get(channelId);
+    if (!channelName) {
+      try {
+        channelName = await getChannelName({ channelId, apiKey });
+      } catch (err) {
+        logger.warn('Failed to fetch channel name, using channel_id', {
+          channelId,
+          error: err.message
+        });
+        channelName = channelId;
+      }
+      channelNameCache.set(channelId, channelName);
+    }
 
     logger.info('Polling channel', { channelId, channelName });
 

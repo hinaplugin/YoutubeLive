@@ -9,6 +9,17 @@ async function fetchJson(url) {
   return res.json();
 }
 
+async function getChannelName({ channelId, apiKey }) {
+  const url = new URL(`${API_BASE}/channels`);
+  url.searchParams.set('part', 'snippet');
+  url.searchParams.set('id', channelId);
+  url.searchParams.set('key', apiKey);
+
+  const data = await fetchJson(url.toString());
+  const item = (data.items || [])[0];
+  return item?.snippet?.title || channelId;
+}
+
 async function searchVideosByEventType({ channelId, eventType, apiKey, maxResults }) {
   const url = new URL(`${API_BASE}/search`);
   url.searchParams.set('part', 'id');
@@ -57,4 +68,4 @@ async function getChannelVideos({ channelId, apiKey, maxResults }) {
   };
 }
 
-module.exports = { getChannelVideos };
+module.exports = { getChannelName, getChannelVideos };

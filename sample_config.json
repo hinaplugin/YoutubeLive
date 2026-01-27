@@ -25,7 +25,6 @@
   },
   "channels": [
     {
-      "name": "sample-channel",
       "channel_id": "UCxxxxxxxxxxxxxxxxxxxxxx"
     }
   ]

@@ -41,7 +41,7 @@ npm start
 `config.json` の主な項目:
 - `poll_interval_minutes`: 取得間隔（分）
 - `max_results`: 取得件数（各イベント種別ごと）
-- `channels`: 監視対象チャンネル
+- `channels`: 監視対象チャンネル（`channel_id` のみ指定）
 - `notification`: 通知テンプレート設定
   - `types`: 通知種別
   - `embed.colors`: 通知種別ごとの色

@@ -132,11 +132,29 @@ async function main() {
   const logger = createLogger();
   const statePath = resolveStatePath(configDir, config);
   const state = loadState(statePath);
+  const apiKey = process.env.YOUTUBE_API_KEY;
 
   const pollMinutes = config.poll_interval_minutes;
   const intervalMs = pollMinutes * 60 * 1000;
 
   logger.info('Bot started', { poll_interval_minutes: pollMinutes, configDir });
+  const channelIds = (config.channels || []).map((ch) => ch.channel_id).filter(Boolean);
+  if (!apiKey) throw new Error('YOUTUBE_API_KEY is not set in .env');
+  const channelsWithNames = await Promise.all(
+    channelIds.map(async (channelId) => {
+      try {
+        const channelName = await getChannelName({ channelId, apiKey });
+        return { channel_id: channelId, channel_name: channelName };
+      } catch (err) {
+        logger.warn('Failed to fetch channel name, using channel_id', {
+          channelId,
+          error: err.message
+        });
+        return { channel_id: channelId, channel_name: channelId };
+      }
+    })
+  );
+  logger.info('Target channels', { count: channelsWithNames.length, channels: channelsWithNames });
 
   await pollOnce({ config, configDir, logger, state, statePath, isStartup: true });
   setInterval(() => {

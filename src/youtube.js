@@ -1,4 +1,13 @@
-﻿const API_BASE = 'https://www.googleapis.com/youtube/v3';
+const API_BASE = 'https://www.googleapis.com/youtube/v3';
+
+async function fetchText(url) {
+  const res = await fetch(url);
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`HTTP ${res.status}: ${text}`);
+  }
+  return res.text();
+}
 
 async function fetchJson(url) {
   const res = await fetch(url);
@@ -20,22 +29,20 @@ async function getChannelName({ channelId, apiKey }) {
   return item?.snippet?.title || channelId;
 }
 
-async function searchVideosByEventType({ channelId, eventType, apiKey, maxResults }) {
-  const url = new URL(`${API_BASE}/search`);
-  url.searchParams.set('part', 'id');
-  url.searchParams.set('channelId', channelId);
-  url.searchParams.set('eventType', eventType);
-  url.searchParams.set('type', 'video');
-  url.searchParams.set('order', 'date');
-  url.searchParams.set('maxResults', String(maxResults));
-  url.searchParams.set('key', apiKey);
-
-  const data = await fetchJson(url.toString());
-  const ids = (data.items || [])
-    .map((item) => item.id && item.id.videoId)
-    .filter(Boolean);
-
-  return ids;
+async function fetchRssVideoIds({ channelId, maxResults }) {
+  const url = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
+  const xml = await fetchText(url);
+  const ids = [];
+  const regex = /<yt:videoId>([^<]+)<\/yt:videoId>/g;
+  let match;
+  while ((match = regex.exec(xml)) !== null) {
+    ids.push(match[1]);
+  }
+  const unique = Array.from(new Set(ids));
+  if (maxResults && Number.isFinite(maxResults)) {
+    return unique.slice(0, maxResults);
+  }
+  return unique;
 }
 
 async function fetchVideoDetails({ ids, apiKey }) {
@@ -50,20 +57,4 @@ async function fetchVideoDetails({ ids, apiKey }) {
   return data.items || [];
 }
 
-async function getChannelVideos({ channelId, apiKey, maxResults }) {
-  const [upcomingIds, liveIds] = await Promise.all([
-    searchVideosByEventType({ channelId, eventType: 'upcoming', apiKey, maxResults }),
-    searchVideosByEventType({ channelId, eventType: 'live', apiKey, maxResults })
-  ]);
-
-  const allIds = Array.from(new Set([...upcomingIds, ...liveIds]));
-  const details = await fetchVideoDetails({ ids: allIds, apiKey });
-
-  return {
-    upcomingIds: new Set(upcomingIds),
-    liveIds: new Set(liveIds),
-    details
-  };
-}
-
-module.exports = { getChannelName, getChannelVideos };
+module.exports = { getChannelName, fetchRssVideoIds, fetchVideoDetails };

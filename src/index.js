@@ -1,7 +1,7 @@
 ﻿const { loadConfig } = require('./config');
 const { createLogger } = require('./logger');
 const { resolveStatePath, loadState, saveState } = require('./store');
-const { getChannelName, getChannelVideos } = require('./youtube');
+const { getChannelName, fetchRssVideoIds, fetchVideoDetails } = require('./youtube');
 const { buildEmbed, sendWebhook } = require('./discord');
 
 function toVideoInfo(item) {
@@ -32,6 +32,14 @@ function isFutureTime(value, nowMs) {
   const ts = Date.parse(value);
   if (Number.isNaN(ts)) return false;
   return ts > nowMs;
+}
+
+function deriveStatus(item) {
+  const details = item.liveStreamingDetails || {};
+  if (details.actualEndTime) return 'completed';
+  if (details.actualStartTime) return 'live';
+  if (details.scheduledStartTime) return 'upcoming';
+  return null;
 }
 
 function isQuotaExceededError(err) {
@@ -71,9 +79,26 @@ async function pollOnce({ config, configDir, logger, state, statePath, isStartup
 
     logger.info('Polling channel', { channelId, channelName });
 
-    let result;
+    let rssIds;
     try {
-      result = await getChannelVideos({ channelId, apiKey, maxResults });
+      rssIds = await fetchRssVideoIds({ channelId, maxResults });
+    } catch (err) {
+      logger.warn('Failed to fetch RSS feed', { channelId, error: err.message });
+      rssIds = [];
+    }
+
+    const trackedIds = Object.entries(state.videos)
+      .filter(([, info]) => info.channel_id === channelId && (info.status === 'upcoming' || info.status === 'live'))
+      .map(([videoId]) => videoId);
+
+    const idsToFetch = Array.from(new Set([...rssIds, ...trackedIds]));
+    if (idsToFetch.length === 0) {
+      continue;
+    }
+
+    let details;
+    try {
+      details = await fetchVideoDetails({ ids: idsToFetch, apiKey });
     } catch (err) {
       if (isQuotaExceededError(err)) {
         logger.warn('Quota exceeded, skipping channel until next poll', {
@@ -84,16 +109,20 @@ async function pollOnce({ config, configDir, logger, state, statePath, isStartup
       }
       throw err;
     }
-    const { upcomingIds, liveIds, details } = result;
+
+    const returnedIds = new Set(details.map((item) => item.id));
 
     for (const item of details) {
       const info = toVideoInfo(item);
       const prev = state.videos[info.id];
 
       let type = null;
-      let status = prev?.status || null;
+      const status = deriveStatus(item);
+      if (!status) {
+        continue;
+      }
 
-      if (upcomingIds.has(info.id)) {
+      if (status === 'upcoming') {
         if (!prev) {
           if (!isStartup || isFutureTime(info.start_time, nowMs)) {
             type = 'scheduled_created';
@@ -103,12 +132,17 @@ async function pollOnce({ config, configDir, logger, state, statePath, isStartup
         } else if (prev.status !== 'upcoming' && diffFields(prev, info)) {
           type = 'scheduled_updated';
         }
-        status = 'upcoming';
-      } else if (liveIds.has(info.id)) {
+      } else if (status === 'live') {
         if (prev?.status !== 'live') {
           type = 'live_started';
         }
-        status = 'live';
+      } else if (status === 'completed') {
+        if (prev) {
+          const suppressEndedNotice = isStartup && prev?.status === 'upcoming';
+          if (!suppressEndedNotice && prev?.status !== 'completed') {
+            type = 'live_ended';
+          }
+        }
       }
 
       state.videos[info.id] = {
@@ -138,6 +172,34 @@ async function pollOnce({ config, configDir, logger, state, statePath, isStartup
       if (prevInfo.channel_id !== channelId) continue;
       if (prevInfo.status !== 'live') continue;
       if (liveIds.has(videoId)) continue;
+
+      prevInfo.status = 'completed';
+      state.videos[videoId] = prevInfo;
+
+      if (!isStartup) {
+        try {
+          const embed = buildEmbed({
+            type: 'live_ended',
+            video: prevInfo,
+            notificationConfig,
+            channelName
+          });
+          await sendWebhook({ webhookUrl, embed });
+          logger.info('Notification sent', { type: 'live_ended', videoId });
+        } catch (err) {
+          logger.error('Failed to send notification', {
+            error: err.message,
+            type: 'live_ended',
+            videoId
+          });
+        }
+      }
+    }
+
+    for (const [videoId, prevInfo] of Object.entries(state.videos)) {
+      if (prevInfo.channel_id !== channelId) continue;
+      if (prevInfo.status !== 'live') continue;
+      if (returnedIds.has(videoId)) continue;
 
       prevInfo.status = 'completed';
       state.videos[videoId] = prevInfo;

@@ -1,0 +1,32 @@
+﻿{
+  "poll_interval_minutes": 1,
+  "max_results": 10,
+  "notification": {
+    "types": [
+      "scheduled_created",
+      "scheduled_updated",
+      "live_started",
+      "live_ended"
+    ],
+    "embed": {
+      "colors": {
+        "scheduled_created": "yellowgreen",
+        "scheduled_updated": "orange",
+        "live_started": "lightskyblue",
+        "live_ended": "red"
+      },
+      "fields": [
+        "title",
+        "url",
+        "thumbnail",
+        "start_time"
+      ]
+    }
+  },
+  "channels": [
+    {
+      "name": "sample-channel",
+      "channel_id": "UCxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  ]
+}

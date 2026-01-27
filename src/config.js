@@ -3,10 +3,13 @@ const path = require('path');
 require('dotenv').config();
 
 function loadConfig() {
-  const configDir = process.env.CONFIG_DIR
-    ? path.resolve(process.env.CONFIG_DIR)
-    : process.cwd();
-  const configPath = path.join(configDir, 'config.json');
+  const configPath = process.env.CONFIG_PATH
+    ? path.resolve(process.env.CONFIG_PATH)
+    : path.join(
+        process.env.CONFIG_DIR ? path.resolve(process.env.CONFIG_DIR) : process.cwd(),
+        'config.json'
+      );
+  const configDir = path.dirname(configPath);
 
   if (!fs.existsSync(configPath)) {
     throw new Error(`config.json not found at ${configPath}`);

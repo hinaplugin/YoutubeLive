@@ -20,12 +20,13 @@ npm install
 
 2. 設定ファイルの用意
 `sample_config.json` を `config.json` にコピーして編集します。
-`CONFIG_DIR` で指定したディレクトリに配置してください。
+`CONFIG_PATH` で指定するか、`CONFIG_DIR` で指定したディレクトリに配置してください。
 
 3. 環境変数の用意
 `sample.env` を `.env` にコピーして編集します。
 
 ```
+CONFIG_PATH=./config/config.json
 CONFIG_DIR=./config
 LOG_DIR=./logs
 LIVE_JSON_DIR=./live
@@ -53,7 +54,11 @@ npm start
 
 ## 状態保存
 - 取得済みデータは `CONFIG_DIR/live.json` に保存されます。
-- `.env` の `LIVE_JSON_DIR` で保存先ディレクトリを指定できます（相対パスは `CONFIG_DIR` 基準）。
+- `.env` の `LIVE_JSON_DIR` で保存先ディレクトリを指定できます（相対パスは CWD 基準）。
+
+## 設定ファイル
+- `CONFIG_PATH` を指定した場合、`config.json` はそのパスから読み込みます。
+- `CONFIG_PATH` が未指定の場合は `CONFIG_DIR/config.json` を読み込みます。
 
 ## 注意点
 - YouTube Data API を使用します。APIキーが必要です。

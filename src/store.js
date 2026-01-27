@@ -4,7 +4,7 @@ const path = require('path');
 function resolveStatePath(configDir, config) {
   const liveDir = process.env.LIVE_JSON_DIR;
   if (liveDir) {
-    const baseDir = path.isAbsolute(liveDir) ? liveDir : path.join(configDir, liveDir);
+    const baseDir = path.isAbsolute(liveDir) ? liveDir : path.resolve(liveDir);
     return path.join(baseDir, 'live.json');
   }
   return path.join(configDir, 'live.json');

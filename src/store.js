@@ -1,8 +1,13 @@
 ﻿const fs = require('fs');
 const path = require('path');
 
-function getStatePath(configDir) {
-  return path.join(configDir, 'state.json');
+function resolveStatePath(configDir, config) {
+  const liveDir = process.env.LIVE_JSON_DIR;
+  if (liveDir) {
+    const baseDir = path.isAbsolute(liveDir) ? liveDir : path.join(configDir, liveDir);
+    return path.join(baseDir, 'live.json');
+  }
+  return path.join(configDir, 'live.json');
 }
 
 function loadState(statePath) {
@@ -19,4 +24,4 @@ function saveState(statePath, state) {
   fs.renameSync(tmpPath, statePath);
 }
 
-module.exports = { getStatePath, loadState, saveState };
+module.exports = { resolveStatePath, loadState, saveState };

@@ -28,6 +28,7 @@ npm install
 ```
 CONFIG_DIR=./config
 LOG_DIR=./logs
+LIVE_JSON_DIR=./live
 YOUTUBE_API_KEY=your_youtube_api_key
 DISCORD_WEBHOOK_URL=your_discord_webhook_url
 ```
@@ -51,7 +52,8 @@ npm start
 - すべてのログは `LOG_DIR/latest.log` に出力されます。
 
 ## 状態保存
-- 取得済みデータは `CONFIG_DIR/state.json` に保存されます。
+- 取得済みデータは `CONFIG_DIR/live.json` に保存されます。
+- `.env` の `LIVE_JSON_DIR` で保存先ディレクトリを指定できます（相対パスは `CONFIG_DIR` 基準）。
 
 ## 注意点
 - YouTube Data API を使用します。APIキーが必要です。

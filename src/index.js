@@ -1,6 +1,6 @@
 ﻿const { loadConfig } = require('./config');
 const { createLogger } = require('./logger');
-const { getStatePath, loadState, saveState } = require('./store');
+const { resolveStatePath, loadState, saveState } = require('./store');
 const { getChannelName, getChannelVideos } = require('./youtube');
 const { buildEmbed, sendWebhook } = require('./discord');
 
@@ -27,7 +27,14 @@ function diffFields(prev, next) {
   return fields.some((f) => prev[f] !== next[f]);
 }
 
-async function pollOnce({ config, configDir, logger, state, statePath }) {
+function isFutureTime(value, nowMs) {
+  if (!value) return false;
+  const ts = Date.parse(value);
+  if (Number.isNaN(ts)) return false;
+  return ts > nowMs;
+}
+
+async function pollOnce({ config, configDir, logger, state, statePath, isStartup }) {
   const apiKey = process.env.YOUTUBE_API_KEY;
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
 
@@ -38,6 +45,8 @@ async function pollOnce({ config, configDir, logger, state, statePath }) {
   const maxResults = config.max_results || 10;
 
   const channelNameCache = new Map();
+
+  const nowMs = isStartup ? Date.now() : null;
 
   for (const ch of config.channels) {
     const channelId = ch.channel_id;
@@ -69,7 +78,9 @@ async function pollOnce({ config, configDir, logger, state, statePath }) {
 
       if (upcomingIds.has(info.id)) {
         if (!prev) {
-          type = 'scheduled_created';
+          if (!isStartup || isFutureTime(info.start_time, nowMs)) {
+            type = 'scheduled_created';
+          }
         } else if (prev.status === 'upcoming' && diffFields(prev, info)) {
           type = 'scheduled_updated';
         } else if (prev.status !== 'upcoming' && diffFields(prev, info)) {
@@ -82,7 +93,8 @@ async function pollOnce({ config, configDir, logger, state, statePath }) {
         }
         status = 'live';
       } else if (completedIds.has(info.id)) {
-        if (prev?.status !== 'completed') {
+        const suppressEndedNotice = isStartup && prev?.status === 'upcoming';
+        if (!suppressEndedNotice && prev?.status !== 'completed') {
           type = 'live_ended';
         }
         status = 'completed';
@@ -118,7 +130,7 @@ async function pollOnce({ config, configDir, logger, state, statePath }) {
 async function main() {
   const { config, configDir } = loadConfig();
   const logger = createLogger();
-  const statePath = getStatePath(configDir);
+  const statePath = resolveStatePath(configDir, config);
   const state = loadState(statePath);
 
   const pollMinutes = config.poll_interval_minutes;
@@ -126,9 +138,9 @@ async function main() {
 
   logger.info('Bot started', { poll_interval_minutes: pollMinutes, configDir });
 
-  await pollOnce({ config, configDir, logger, state, statePath });
+  await pollOnce({ config, configDir, logger, state, statePath, isStartup: true });
   setInterval(() => {
-    pollOnce({ config, configDir, logger, state, statePath }).catch((err) => {
+    pollOnce({ config, configDir, logger, state, statePath, isStartup: false }).catch((err) => {
       logger.error('Poll failed', { error: err.message });
     });
   }, intervalMs);

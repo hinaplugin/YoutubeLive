@@ -111,6 +111,9 @@ async function pollOnce({ config, configDir, logger, state, statePath, isStartup
     }
 
     const returnedIds = new Set(details.map((item) => item.id));
+    const liveIds = new Set(
+      details.filter((item) => deriveStatus(item) === 'live').map((item) => item.id)
+    );
 
     for (const item of details) {
       const info = toVideoInfo(item);

@@ -4,26 +4,41 @@ const { resolveStatePath, loadState, saveState } = require('./store');
 const { getChannelName, fetchRssVideoIds, fetchVideoDetails } = require('./youtube');
 const { buildEmbed, sendWebhook } = require('./discord');
 
+function formatJstYmdHm(value) {
+  if (!value) return '';
+  const ts = Date.parse(value);
+  if (Number.isNaN(ts)) return '';
+  const jst = new Date(ts + 9 * 60 * 60 * 1000);
+  const yyyy = jst.getUTCFullYear();
+  const mm = String(jst.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(jst.getUTCDate()).padStart(2, '0');
+  const hh = String(jst.getUTCHours()).padStart(2, '0');
+  const min = String(jst.getUTCMinutes()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
+}
+
 function toVideoInfo(item) {
   const snippet = item.snippet || {};
   const details = item.liveStreamingDetails || {};
 
   const url = `https://www.youtube.com/watch?v=${item.id}`;
   const thumbnail = snippet.thumbnails?.high?.url || snippet.thumbnails?.default?.url || '';
-  const startTime = details.scheduledStartTime || details.actualStartTime || '';
+  const startTimeRaw = details.scheduledStartTime || details.actualStartTime || '';
+  const startTime = formatJstYmdHm(startTimeRaw);
 
   return {
     id: item.id,
     title: snippet.title || '',
     url,
     thumbnail,
-    start_time: startTime
+    start_time: startTime,
+    start_time_raw: startTimeRaw
   };
 }
 
 function diffFields(prev, next) {
   if (!prev) return true;
-  const fields = ['title', 'url', 'thumbnail', 'start_time'];
+  const fields = ['title', 'url', 'thumbnail', 'start_time_raw'];
   return fields.some((f) => prev[f] !== next[f]);
 }
 
@@ -127,7 +142,7 @@ async function pollOnce({ config, configDir, logger, state, statePath, isStartup
 
       if (status === 'upcoming') {
         if (!prev) {
-          if (!isStartup || isFutureTime(info.start_time, nowMs)) {
+          if (!isStartup || isFutureTime(info.start_time_raw, nowMs)) {
             type = 'scheduled_created';
           }
         } else if (prev.status === 'upcoming' && diffFields(prev, info)) {

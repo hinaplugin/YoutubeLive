@@ -12,12 +12,18 @@ const TYPE_LABELS = {
   live_ended: '配信が終了しました'
 };
 
-function formatJstIso(value) {
+function formatJstYmdHm(value) {
   if (!value) return '';
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(value)) return value;
   const ts = Date.parse(value);
   if (Number.isNaN(ts)) return value;
-  const jst = new Date(ts + 9 * 60 * 60 * 1000).toISOString();
-  return jst.replace('Z', '+09:00');
+  const jst = new Date(ts + 9 * 60 * 60 * 1000);
+  const yyyy = jst.getUTCFullYear();
+  const mm = String(jst.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(jst.getUTCDate()).padStart(2, '0');
+  const hh = String(jst.getUTCHours()).padStart(2, '0');
+  const min = String(jst.getUTCMinutes()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
 }
 
 function resolveColor(colorValue) {
@@ -61,7 +67,7 @@ function buildEmbed({ type, video, notificationConfig, channelName }) {
     embed.fields = [
       {
         name: 'Start Time',
-        value: formatJstIso(video.start_time),
+        value: formatJstYmdHm(video.start_time),
         inline: false
       }
     ];

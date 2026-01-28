@@ -11,13 +11,19 @@ function createLogger() {
     fs.mkdirSync(logDir, { recursive: true });
   }
 
-  function formatJstIso() {
+  function formatJstYmdHm() {
     const jstMs = Date.now() + 9 * 60 * 60 * 1000;
-    return new Date(jstMs).toISOString().replace('Z', '+09:00');
+    const jst = new Date(jstMs);
+    const yyyy = jst.getUTCFullYear();
+    const mm = String(jst.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(jst.getUTCDate()).padStart(2, '0');
+    const hh = String(jst.getUTCHours()).padStart(2, '0');
+    const min = String(jst.getUTCMinutes()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
   }
 
   function write(level, message, meta) {
-    const ts = formatJstIso();
+    const ts = formatJstYmdHm();
     const line = `${ts} [${level}] ${message}` + (meta ? ` ${JSON.stringify(meta)}` : '') + '\n';
     fs.appendFileSync(logPath, line, 'utf8');
   }
